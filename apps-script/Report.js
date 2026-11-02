@@ -17,6 +17,7 @@ function reportOrders_(from, to, withLines) {
       total: Number(String(r['Summa']).replace(/\D/g, '')) || 0,
       tip: Number(String(r['Dricks']).replace(/\D/g, '')) || 0,
       online: /^pi_/.test(r['Stripe'] || ''), refunded: refundedKr_(r['Återbetald']),
+      pi: /^pi_/.test(r['Stripe'] || '') ? String(r['Stripe']) : '',   // kopplar ordern till Stripe-utbetalningen
       lines: withLines ? (safeJson_(r['Rader (data)']) || []) : undefined
     }));
 

@@ -94,6 +94,15 @@ ul li b{display:inline-block;min-width:2.2ch}
 .rtable td.barc{width:28%;min-width:90px;text-align:left}
 .rbar{height:12px;border-radius:0 4px 4px 0;background:var(--koi);min-width:2px}
 .rtable tr:hover td{background:#EEF4FA}
+/* utbetalningar */
+.pst{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.pst.paid{background:#D6F5DD;color:#1F6B42}.pst.in_transit,.pst.pending{background:#DCEBFF;color:#1D4E89}
+.pst.failed,.pst.canceled{background:#FBEAE8;color:#7A2E27}.pst.wait{background:#EFEFEF;color:#4B5261}
+.rtable td.diff-bad{color:#B6493E;font-weight:700}.rtable td.diff-ok{color:#2F8F5B}
+.rtable tr.po{cursor:pointer}.rtable tr.items td{background:#FAFBFC;font-size:14px;color:var(--ink-2);text-align:left;white-space:normal}
+.items table{width:100%;border-collapse:collapse}.items table td{padding:3px 8px;border:0;text-align:right}.items table td:first-child{text-align:left}
+.phead{margin:18px 0 8px;font-size:17px}
+.pnote{font-size:13px;color:var(--ink-2);margin:10px 0 0;max-width:72ch}
 .rwrap{overflow-x:auto;border-radius:12px}
 
 .day{margin:18px 0 8px;font-size:15px;font-weight:700;color:var(--ink-2)}
@@ -156,6 +165,7 @@ ul li b{display:inline-block;min-width:2.2ch}
     <button type="button" data-tab="menu">Meny idag<span class="badge" id="bMenu"></span></button>
     <button type="button" data-tab="qr">QR‑koder</button>
     <button type="button" data-tab="report">Rapport</button>
+    <button type="button" data-tab="payouts">Utbetalningar</button>
   </nav>
 </header>
 
@@ -223,6 +233,33 @@ ul li b{display:inline-block;min-width:2.2ch}
     <div class="rwrap"><table class="rtable" id="rTable"></table></div>
   </section>
 
+  <section data-panel="payouts" hidden>
+    <div class="tools">
+      <div class="leadbtns" id="pModes" role="group" aria-label="Visa">
+        <button type="button" data-pmode="week">Vecka</button><button type="button" data-pmode="month" aria-pressed="true">Månad</button>
+      </div>
+      <div class="rnav">
+        <button class="btn" type="button" id="pPrev" aria-label="Föregående">‹</button>
+        <input type="date" id="pDate" aria-label="Vecka" hidden>
+        <input type="month" id="pMonth" aria-label="Månad">
+        <button class="btn" type="button" id="pNext" aria-label="Nästa">›</button>
+        <button class="btn" type="button" id="pToday">Idag</button>
+      </div>
+      <span class="rlabel" id="pLabel"></span>
+      <button class="btn" type="button" id="pCsv">Ladda ner CSV</button>
+    </div>
+    <div id="pWarn" class="banner warn" hidden></div>
+    <div class="tiles" id="pTiles"></div>
+    <h3 class="phead">Utbetalningar till bankkontot</h3>
+    <div class="rwrap"><table class="rtable" id="pPayouts"></table></div>
+    <h3 class="phead">Avstämning per dag – webben mot Stripe</h3>
+    <div class="rwrap"><table class="rtable" id="pDays"></table></div>
+    <p class="pnote">Webben = kortbetalningar online enligt beställningarna (samma som Rapport) − återbetalt − transaktionsavgift.
+      Stripe = det som faktiskt bokats på ert Stripe-konto och betalas ut till banken. <b>Skillnad</b> ska vara 0 kr.
+      En återbetalning som görs en annan dag än beställningen syns som +/− på de två dagarna och tar ut varandra.
+      Swish går direkt till ert Swish-konto och finns inte här.</p>
+  </section>
+
   <section data-panel="qr" hidden>
     <div class="panel noprint">
       <h2>QR‑koder till borden</h2>
@@ -277,6 +314,7 @@ $$(".tabs button").forEach(b => b.onclick = () => {
   if (tab === "qr" && !$("#qrs").children.length) makeQr();
   if (tab === "menu") loadMenu();
   if (tab === "report") loadReport();
+  if (tab === "payouts") loadPayouts();
 });
 
 /* ---------- ljud ---------- */
@@ -493,6 +531,80 @@ $("#rCsv").onclick = async () => {
   try {
     const res = await api(`?view=report&from=${r.from}&to=${r.to}&by=${r.by}&format=csv`, { raw: true });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: `hanami-omsattning-${r.mode === "year" ? r.from.slice(0,4) : r.mode === "month" ? r.from.slice(0,7) : r.from + (r.to !== r.from ? "_" + r.to : "")}.csv` });
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { if (e.message !== "401") alert(e.message); }
+};
+
+/* ---------- utbetalningar från Stripe (lib/payouts.js) ---------- */
+let pMode = "month", pData = null;
+const PSTATUS = { paid: "Utbetald", in_transit: "På väg", pending: "Förbereds", failed: "Misslyckades", canceled: "Avbruten" };
+const dShort = s => `${Number(s.slice(8))}/${Number(s.slice(5, 7))}`;
+function payoutRange(){
+  const now = nowSE();
+  if (!$("#pDate").value) $("#pDate").value = iso(now);
+  if (!$("#pMonth").value) $("#pMonth").value = iso(now).slice(0, 7);
+  if (pMode === "week") { const d = $("#pDate").value, mon = addD(d, -((parseD(d).getDay() + 6) % 7)), sun = addD(mon, 6);
+    return { from: mon, to: sun, label: `Vecka ${isoWeek(mon)} · ${dShort(mon)}–${dShort(sun)} ${sun.slice(0, 4)}` }; }
+  const [y, m] = $("#pMonth").value.split("-").map(Number);
+  return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${pad2(new Date(y, m, 0).getDate())}`, label: "" };
+}
+async function loadPayouts(){
+  const r = payoutRange();
+  $("#pDate").hidden = pMode !== "week"; $("#pMonth").hidden = pMode !== "month"; $("#pLabel").textContent = r.label;
+  $$("#pModes [data-pmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.pmode === pMode)));
+  $("#pTiles").innerHTML = ""; $("#pPayouts").innerHTML = `<tr><td>Hämtar från Stripe…</td></tr>`; $("#pDays").innerHTML = ""; $("#pWarn").hidden = true;
+  try {
+    const d = pData = await api(`?view=payouts&from=${r.from}&to=${r.to}`), t = d.total || {};
+    const tile = (k, v, cls = "", sub = "") => `<div class="tile ${cls}"><div class="k">${k}</div><div class="v">${v}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
+    const diffBad = Math.abs(t.diff || 0) >= 0.5;
+    $("#pTiles").innerHTML =
+      tile("Utbetalt till banken", krf(t.paidToBank), "hero", `${d.payouts.filter(p => p.status === "paid").length} utbetalningar som nått banken i perioden`) +
+      tile("På väg till banken", krf(t.onTheWay), "", "utbetalningar som inte nått banken än") +
+      (d.balance ? tile("Väntar hos Stripe", krf(d.balance.pending + d.balance.available), "", "betalas ut automatiskt de närmaste dagarna") : "") +
+      tile("Webben: kortförsäljning", krf(t.webOnline), "", `${t.orders || 0} order online`) +
+      tile("Ska till banken", krf(t.webExpected), "", `efter avgift ${krf(t.webFee)} och återbetalt ${krf(t.webRefunded)}`) +
+      tile("Stripe har bokat", krf(t.stripeNet), "", "för periodens försäljning") +
+      tile("Skillnad", krf(t.diff), diffBad ? "warn" : "", diffBad ? "kontrollera dagarna markerade i rött" : "webben och Stripe stämmer");
+    if (d.notInStripe && d.notInStripe.length) { $("#pWarn").hidden = false; $("#pWarn").textContent = `Onlinebetalda i arket men saknas hos Stripe: ${d.notInStripe.join(", ")}.`; }
+
+    $("#pPayouts").innerHTML = d.payouts.length ? `<thead><tr><th>Till banken</th><th>Belopp</th><th>Status</th><th>Order</th><th>Försäljning</th><th>Avgift</th><th>Återbetalt</th><th>Gäller försäljning</th></tr></thead><tbody>` +
+      d.payouts.map((p, i) => `<tr class="po" data-po="${i}" title="Tryck för att se beställningarna">
+        <td>${esc(parseD(p.arrival).toLocaleDateString("sv-SE", { weekday: "short", day: "numeric", month: "short" }))}${p.bank ? `<br><small style="color:var(--ink-2)">${esc(p.bank)}</small>` : ""}</td>
+        <td><b>${krf(p.amount)}</b></td><td><span class="pst ${esc(p.status)}">${esc(PSTATUS[p.status] || p.status)}</span></td>
+        <td>${p.orders}</td><td>${krf(p.gross)}</td><td>${p.fee ? "−" + krf(p.fee) : "–"}</td><td>${p.refunds ? "−" + krf(p.refunds) : "–"}</td>
+        <td>${p.days.length ? (p.days[0] === p.days[1] ? dShort(p.days[0]) : dShort(p.days[0]) + "–" + dShort(p.days[1])) : "–"}</td></tr>
+        <tr class="items" data-items="${i}" hidden><td colspan="8"><table>${p.items.map(it => `<tr><td>${esc(dShort(it.day))} ${esc(it.no || (it.type === "refund" ? "Återbetalning" : it.pi || "–"))}</td>
+          <td>${krf(it.amount)}</td><td>${it.fee ? "−" + krf(it.fee) : ""}</td><td><b>${krf(it.net)}</b></td></tr>`).join("")}</table></td></tr>`).join("") + `</tbody>`
+      : `<tr><td>Inga utbetalningar till banken i perioden.</td></tr>`;
+
+    const days = d.days.filter(x => x.orders || x.stripeNet || x.webExpected);
+    $("#pDays").innerHTML = days.length ? `<thead><tr><th>Dag</th><th>Order</th><th>Webben: kort</th><th>Återbet.</th><th>Avgift</th><th>Ska till bank</th><th>Stripe netto</th><th>Skillnad</th><th>Status</th></tr></thead><tbody>` +
+      days.map(x => { const bad = Math.abs(x.diff) >= 0.5;
+        const st = x.waiting ? `<span class="pst wait">Väntar hos Stripe</span>` : x.inTransit ? `<span class="pst in_transit">På väg ${x.payoutDates.map(dShort).join(", ")}</span>`
+          : x.paidOut ? `<span class="pst paid">Utbetald ${x.payoutDates.map(dShort).join(", ")}</span>` : "–";
+        return `<tr><td>${esc(parseD(x.date).toLocaleDateString("sv-SE", { weekday: "short" }))} ${dShort(x.date)}</td><td>${x.orders}</td><td>${krf(x.webOnline)}</td>
+          <td>${x.webRefunded ? "−" + krf(x.webRefunded) : "–"}</td><td>${x.webFee ? "−" + krf(x.webFee) : "–"}</td><td><b>${krf(x.webExpected)}</b></td><td><b>${krf(x.stripeNet)}</b></td>
+          <td class="${bad ? "diff-bad" : "diff-ok"}">${bad ? krf(x.diff) : "✓"}</td><td>${st}</td></tr>`; }).join("") +
+      `<tr class="sum"><td>Totalt</td><td>${t.orders}</td><td>${krf(t.webOnline)}</td><td>${t.webRefunded ? "−" + krf(t.webRefunded) : "–"}</td><td>${t.webFee ? "−" + krf(t.webFee) : "–"}</td>
+        <td>${krf(t.webExpected)}</td><td>${krf(t.stripeNet)}</td><td class="${diffBad ? "diff-bad" : "diff-ok"}">${diffBad ? krf(t.diff) : "✓"}</td><td></td></tr></tbody>`
+      : `<tr><td>Ingen kortförsäljning online i perioden.</td></tr>`;
+  } catch (e) { if (e.message !== "401") $("#pPayouts").innerHTML = `<tr><td class="err">${esc(e.message)}</td></tr>`; }
+}
+$("#pModes").onclick = e => { const b = e.target.closest("[data-pmode]"); if (!b) return; pMode = b.dataset.pmode; loadPayouts(); };
+$("#pPrev").onclick = () => shiftPayouts(-1); $("#pNext").onclick = () => shiftPayouts(1);
+function shiftPayouts(dir){
+  if (pMode === "week") $("#pDate").value = addD($("#pDate").value || today(), 7 * dir);
+  else { const [y, m] = $("#pMonth").value.split("-").map(Number), d = new Date(y, m - 1 + dir, 1, 12); $("#pMonth").value = isoD(d).slice(0, 7); }
+  loadPayouts();
+}
+$("#pToday").onclick = () => { $("#pDate").value = today(); $("#pMonth").value = today().slice(0, 7); loadPayouts(); };
+$("#pDate").onchange = loadPayouts; $("#pMonth").onchange = loadPayouts;
+$("#pPayouts").onclick = e => { const tr = e.target.closest("[data-po]"); if (!tr) return; const it = $(`[data-items="${tr.dataset.po}"]`); if (it) it.hidden = !it.hidden; };
+$("#pCsv").onclick = async () => {
+  const r = payoutRange();
+  try {
+    const res = await api(`?view=payouts&from=${r.from}&to=${r.to}&format=csv`, { raw: true });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: `hanami-utbetalningar-${pMode === "month" ? r.from.slice(0, 7) : r.from + "_" + r.to}.csv` });
     document.body.appendChild(a); a.click(); a.remove();
   } catch (e) { if (e.message !== "401") alert(e.message); }
 };

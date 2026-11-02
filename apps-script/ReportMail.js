@@ -60,6 +60,36 @@ const MONTHS_SV = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli'
 function reportRecipients_() { return prop_('REPORT_EMAIL') || prop_('NOTIFY_EMAIL'); }
 
 /** Bygger och skickar en rapport för from–to. kind: 'dag' | 'månad'. Returnerar summeringen. */
+/** Avsnittet "Kort online → bankkontot" i dagsrapporten. */
+function stripeSection_(date, row) {
+  const s = stripePayoutDay_(date);
+  if (!s || !s.total) return '';
+  const t = s.total, d = (s.days || [])[0] || {}, paid = (s.payouts || []).filter(p => p.status === 'paid');
+  const diffBad = Math.abs(t.diff || 0) >= 0.5;
+  const status = d.waiting ? 'väntar hos Stripe, betalas ut automatiskt' : d.inTransit ? 'på väg till banken (' + d.payoutDates.join(', ') + ')'
+    : d.paidOut ? 'utbetald ' + d.payoutDates.join(', ') : '–';
+  return '<h3 style="margin:22px 0 6px;font-size:15px">Kort online → ert bankkonto (Stripe)</h3><table style="border-collapse:collapse;width:100%;font-size:15px">' +
+    row('Dagens kortförsäljning (webben)', krR_(t.webOnline)) +
+    row('Ska till banken (efter avgift och återbetalt)', krR_(t.webExpected)) +
+    row('Stripe har bokat för dagen', krR_(t.stripeNet)) +
+    row('Skillnad', diffBad ? '<span style="color:#B6493E">' + krR_(t.diff) + '</span>' : '0 kr ✓', true) +
+    row('Status för dagens pengar', status) +
+    row('Utbetalt till banken idag', paid.length ? krR_(paid.reduce((a, p) => a + p.amount, 0)) + ' (' + paid.length + ' st)' : '0 kr') +
+    '</table>' + (diffBad ? '<p style="font-size:13px;color:#9B2C2C">Skillnaden betyder att webben och Stripe inte stämmer – öppna Utbetalningar i köksvyn.</p>' : '');
+}
+
+/** Stripe → bankkontot för dagsrapporten (via Vercel /api/platform?kind=payouts). null om det inte går – mejlet går ändå. */
+function stripePayoutDay_(date) {
+  const site = prop_('SITE_URL').replace(/\/$/, '');
+  if (!site) return null;
+  try {
+    const res = UrlFetchApp.fetch(site + '/api/platform?kind=payouts&from=' + date + '&to=' + date,
+      { headers: { 'x-report-key': prop_('API_SECRET') }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) { log_('WARN', 'Rapport-Stripe', res.getResponseCode() + ' ' + res.getContentText().slice(0, 200)); return null; }
+    return JSON.parse(res.getContentText());
+  } catch (e) { log_('WARN', 'Rapport-Stripe', e.message); return null; }
+}
+
 function mailReport_(kind, from, to, title) {
   const to_ = reportRecipients_();
   if (!to_) { log_('WARN', 'Rapport-mejl', 'REPORT_EMAIL/NOTIFY_EMAIL saknas'); return null; }
@@ -91,7 +121,7 @@ function mailReport_(kind, from, to, title) {
       row('Dricks', krR_(t.tips)) + row('Återbetalt', krR_(t.refunded)) + row('Moms ' + vat + ' % (ingår)', krR_(t.vat)) +
       row('Hämtning / bord', t.pickup + ' / ' + t.table) + (t.cancelled ? row('Avbokade (räknas inte)', t.cancelled) : '') +
       (t.unpaid ? '<tr><td colspan="2" style="padding:10px 12px;background:#FFF8DB;border-radius:8px;font-size:14px">⚠️ <b>Ej markerad betald: ' + krR_(t.unpaid) + '</b> – Swish där köket inte bockat Betald. Stäm av mot Swish.</td></tr>' : '') +
-    '</table>' + daysTable +
+    '</table>' + daysTable + (kind === 'dag' ? stripeSection_(from, row) : '') +
     (data.archive === 'error' ? '<p style="color:#9B2C2C;font-size:13px">Arkivet gick inte att läsa – äldre dagar kan saknas.</p>' : '') +
     '<p style="margin-top:18px;font-size:13px;color:#4B5261">Netto = brutto − återbetalt. Moms räknas på netto utan dricks. Datum = när beställningen togs emot.</p>' +
     (site ? '<a href="' + site + '/kok" style="display:inline-block;background:#161B26;color:#fff;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:600">Öppna Rapport i köksvyn</a>' : '') +

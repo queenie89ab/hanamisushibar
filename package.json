@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/apps-script.test.cjs && node tests/mix.test.mjs && node tests/router.test.mjs && node tests/receipt.test.mjs && node tests/pickup.test.mjs && node tests/pay.test.mjs && node tests/report.test.mjs && node tests/happy.test.mjs && node tests/platform.test.mjs && node tests/swish.test.mjs && node tests/board.test.mjs",
+    "test": "node tests/apps-script.test.cjs && node tests/mix.test.mjs && node tests/router.test.mjs && node tests/receipt.test.mjs && node tests/pickup.test.mjs && node tests/pay.test.mjs && node tests/report.test.mjs && node tests/happy.test.mjs && node tests/platform.test.mjs && node tests/swish.test.mjs && node tests/board.test.mjs && node tests/payouts.test.mjs",
     "dev": "vercel dev",
     "gas:push": "cd apps-script && npx @google/clasp@2.4.2 push -f",
     "gas:deploy": "cd apps-script && npx @google/clasp@2.4.2 push -f && npx @google/clasp@2.4.2 deploy -i \"$GAS_DEPLOYMENT_ID\" -d \"$(git rev-parse --short HEAD)\"",

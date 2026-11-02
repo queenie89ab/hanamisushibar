@@ -686,6 +686,19 @@ Cài đặt: đưa `Report.js` (mới) và `Api.js` lên Apps Script → Triển
 - **Bật**: Google Sheet → **Hanami → Rapporter per e-post → Slå på**. Thử ngay: *Skicka dagsrapport nu (test)* / *Skicka månadsrapport nu (test)*. Tắt: *Stäng av*.
 - Code: `apps-script/ReportMail.js`, menu trong `Setup.js`. Phí/moms lấy từ thuộc tính `STRIPE_FEE_PCT`, `STRIPE_FEE_FIXED`, `STRIPE_VAT_PCT` (mặc định 4 / 2 / 6).
 
+### Utbetalningar – tiền Stripe chuyển vào ngân hàng, đối chiếu với doanh thu trên web — thêm 2026-11-02
+
+- **Xem:** `/kok` → tab **Utbetalningar** → chọn **Vecka** hoặc **Månad**.
+  - Ô trên cùng: **Utbetalt till banken** (đã vào tài khoản ngân hàng trong kỳ), **På väg** (Stripe đã chuyển, ngân hàng chưa nhận), **Väntar hos Stripe** (số dư chưa chuyển – chỉ hiện khi xem kỳ hiện tại), **Webben: kortförsäljning**, **Ska till banken** (= thẻ online − hoàn tiền − phí giao dịch), **Stripe har bokat**, **Skillnad** (phải = 0).
+  - Bảng **Utbetalningar till bankkontot**: mỗi lần Stripe chuyển tiền — ngày tiền vào ngân hàng, số tiền, trạng thái, số đơn, phí, hoàn tiền, đơn của những ngày nào. Bấm một dòng để xem từng đơn (H-số).
+  - Bảng **Avstämning per dag**: mỗi ngày bán — web vs Stripe, cột Skillnad (✓ hoặc số đỏ), trạng thái *Utbetald 5/11 / På väg / Väntar hos Stripe*.
+  - **Ladda ner CSV** cho kế toán (cả 2 bảng).
+- **E-mail báo cáo ngày (00:01)** có thêm mục **"Kort online → ert bankkonto (Stripe)"**: bán thẻ hôm đó, phải về ngân hàng, Stripe đã ghi, chênh lệch, trạng thái, và số tiền Stripe chuyển vào ngân hàng hôm đó.
+- Swish không qua Stripe (tiền vào thẳng Swish của quán) nên không có ở đây.
+- Hoàn tiền làm vào ngày khác ngày đặt đơn → ngày đơn hiện −, ngày hoàn hiện +; tổng kỳ vẫn = 0.
+- Nguồn: tài khoản Stripe của quán (`STRIPE_ACCOUNT`) — payouts + balance transactions; nối với đơn qua cột **Stripe** (pi_…) trong Sheet. Code `lib/payouts.js`, `GET /api/admin?view=payouts`, `GET /api/platform?kind=payouts` (cho Apps Script), `src/kok.html`; test `tests/payouts.test.mjs`.
+- Cài: đưa `Report.js` và `ReportMail.js` lên Apps Script → Phiên bản mới. Web tự cập nhật qua Vercel.
+
 ### Báo cáo lợi nhuận Q89 (cho Queenie89 AB, KHÔNG gửi quán) — thêm 2026-10-13
 
 - **Mỗi sáng ~07:00** e-mail "💼 Q89 Pay ÅÅÅÅ-MM-DD · resultat …" cho **cả ngày hôm qua** (00:00–24:00), lấy thẳng từ sổ Stripe của tài khoản nền tảng (balance transactions):
