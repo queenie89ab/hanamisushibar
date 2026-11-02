@@ -13,8 +13,8 @@ const today = E.ctx.Utilities.formatDate(new Date(), "Europe/Stockholm", "yyyy-M
 console.log("Apps Script");
 test("setup skapar flikar, triggers och nyckel", () => {
   assert.deepEqual(Object.keys(E.sheets).sort(), ["Beställningar", "Betalningar", "Bokningar", "Logg", "Meny"]);
-  // sendReportMail (engång kl 20.05) läggs bara om setup körs före 20.05 – beror på klockan
-  // engångstriggers (sendReportMail 20.05, sendPeriodReports 20.30) läggs bara om setup körs före klockslaget – beror på klockan
+  // sendReportMail (engång 00.01 natten efter) läggs alltid
+  // engångstriggers: sendReportMail 00.01, sendPeriodReports 00.03 (bara lördag/sista dagen)
   assert.deepEqual(E.log.triggers.filter(t => t !== "sendReportMail" && t !== "sendPeriodReports"), ["handleEdit", "resetSoldOut", "nightlyCleanup", "scheduleReportMail"]);
   assert.equal(E.props.CLEANUP_ENABLED, "off");
   assert.ok(E.props.API_SECRET.length > 30);
@@ -526,6 +526,23 @@ test("rapport-mejl: summering = lib/report.js, dagsrapport skickas en gång, må
   const m0 = E.log.mails.length;
   E.ctx.mailReport_("månad", today.slice(0, 8) + "01", today, "test");
   assert.match(E.log.mails[m0].htmlBody, /Per dag/);
+});
+
+test("rapporten gäller dygnet som slutade 23.59.59 (skickas 00.01 natten efter)", () => {
+  const real = E.ctx.nowParts_, today = E.call("health").time.slice(0, 10);
+  const y = new Date(today + "T12:00:00Z"); y.setUTCDate(y.getUTCDate() - 1); const yesterday = y.toISOString().slice(0, 10);
+  try {
+    E.ctx.nowParts_ = () => ({ date: today, minutes: 1 });          // 00.01 → gårdagen
+    assert.equal(E.ctx.reportDay_(), yesterday);
+    E.ctx.nowParts_ = () => ({ date: today, minutes: 20 });         // trigger försenad till 00.20 → fortfarande gårdagen
+    assert.equal(E.ctx.reportDay_(), yesterday);
+    E.ctx.nowParts_ = () => ({ date: today, minutes: 14 * 60 });    // test från menyn mitt på dagen → idag
+    assert.equal(E.ctx.reportDay_(), today);
+    const n = E.log.triggers.length;
+    E.ctx.nowParts_ = () => ({ date: today, minutes: 12 * 60 });
+    E.ctx.scheduleReportMail();
+    assert.ok(E.log.triggers.slice(n).includes("sendReportMail"), "ingen engångstrigger för natten");
+  } finally { E.ctx.nowParts_ = real; }
 });
 
 test("dagsrapport som PDF: grupper per kategori med rätter, bifogas dagsmejlet", () => {

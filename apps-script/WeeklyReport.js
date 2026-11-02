@@ -1,9 +1,9 @@
 /**
  * Avstämningsrapport till restaurangen – som PDF, samma uppställning för vecka och månad:
- *   • vecka söndag–lördag, skickas lördag kl 20.30 (restaurangen har stängt på söndagar, men beställningar
- *     för senare dagar kan läggas på söndagen – därför räknas söndagen in i veckan som slutar på lördagen)
- *   • månad 1:a–sista, skickas sista dagen kl 20.30
- * Schemaläggs av scheduleReportMail (ReportMail.js) med en engångstrigger på exakt 20.30.
+ *   • vecka söndag–lördag t.o.m. 23.59.59, skickas kl 00.03 natten efter lördagen (restaurangen har stängt på söndagar,
+ *     men beställningar för senare dagar kan läggas på söndagen – därför räknas söndagen in i veckan som slutar på lördagen)
+ *   • månad 1:a–sista t.o.m. 23.59.59, skickas kl 00.03 natten efter sista dagen
+ * Schemaläggs av scheduleReportMail (ReportMail.js) med en engångstrigger på exakt 00.03.
  * Visar försäljning per momssats och betalsätt, transaktionsavgifter för kortbetalning online och
  * vad som betalas ut via Stripe för veckans försäljning. Swish går direkt till restaurangen utan avgift.
  *
@@ -136,9 +136,9 @@ function avstamningMail_(from, to) {
   return w;
 }
 
-/** Engångstrigger kl 20.30 (lördag och/eller månadens sista dag). Var rapport skickas högst en gång. */
+/** Engångstrigger kl 00.03 efter lördag och/eller månadens sista dag. Var rapport skickas högst en gång. */
 function sendPeriodReports() {
-  const today = now_('yyyy-MM-dd'), props = PropertiesService.getScriptProperties();
+  const today = reportDay_(), props = PropertiesService.getScriptProperties();   // dygnet som just slutade 23.59.59
   if (new Date(today + 'T12:00:00Z').getUTCDay() === 6) {
     const from = addDays_(today, -6);                                           // söndag–lördag
     if (props.getProperty('WEEKLY_SENT') !== from) { avstamningMail_(from, today); props.setProperty('WEEKLY_SENT', from); }
@@ -155,5 +155,5 @@ function monthlyReportTest() {
 function weeklyReportTest() {
   const today = now_('yyyy-MM-dd'), dow = new Date(today + 'T12:00:00Z').getUTCDay();   // 0 = söndag
   const w = avstamningMail_(addDays_(today, -dow), today);                                 // från söndag denna vecka
-  say_('Veckorapport för ' + w.label + ' (hittills) skickad till ' + reportRecipients_() + '.\nDen riktiga kommer lördag kl 20.30.');
+  say_('Veckorapport för ' + w.label + ' (hittills) skickad till ' + reportRecipients_() + '.\nDen riktiga kommer natten efter lördag, kl 00.03.');
 }

@@ -1,16 +1,24 @@
 /**
  * Omsättningsrapport per e-post till ägaren.
- *   • Dagsrapport varje dag kl 20.05 (efter stängning 20.00).
- *   • Avstämningsrapport (PDF): vecka sön–lör varje lördag kl 20.30, månad sista dagen kl 20.30 – se WeeklyReport.js.
+ *   • Dagsrapport för hela dygnet 00.00.00–23.59.59. Beställningar tas emot dygnet runt, därför skickas rapporten
+ *     först när dygnet är slut: kl 00.01 natten efter (sendReportMail) – då har sista sekunden 23.59.59 räknats med.
+ *   • Avstämningsrapport (PDF): vecka sön–lör efter lördagens slut, månad efter månadens sista dag (00.03) – se WeeklyReport.js.
  *
  * Exakt klockslag: Apps Scripts dagliga triggers går bara "ungefär" (±15 min). Därför körs scheduleReportMail
- * en gång mitt på dagen och lägger en ENGÅNGS-trigger på exakt 20.05 samma dag (sendReportMail).
+ * en gång mitt på dagen och lägger ENGÅNGS-triggers på exakt 00.01 / 00.03 natten efter.
+ * Vilken dag rapporten gäller: reportDay_() – körs den före kl 06 gäller den gårdagen (dygnet som just tog slut).
  * Mottagare: skriptegenskapen REPORT_EMAIL (flera adresser med komma), annars NOTIFY_EMAIL.
  * Siffrorna räknas som i köksvyns Rapport (lib/report.js) – samma regler, även arkivet läses (Report.js).
  * Plattformsavgiften (Q89) ingår inte – den följs upp i Stripe.
  */
-const REPORT_AT = { h: 20, m: 5 };
-const PERIOD_AT = { h: 20, m: 30 };   // vecko- (lördag) och månadsrapport (sista dagen)
+const REPORT_AT = { h: 0, m: 1 };    // dagsrapporten för dygnet 00.00.00–23.59.59 som just tog slut
+const PERIOD_AT = { h: 0, m: 3 };    // vecko- (efter lördagen) och månadsrapport (efter sista dagen)
+
+/** Dagen rapporten gäller: före kl 06 = gårdagen (dygnet som just slutade 23.59.59), annars idag (test från menyn). */
+function reportDay_() {
+  const today = now_('yyyy-MM-dd');
+  return nowParts_().minutes < 6 * 60 ? addDays_(today, -1) : today;
+}
 const REPORT_FROM_DEFAULT = '2026-10-13';   // allt före var test (samma som reportFrom i data/settings.js); skriptegenskap REPORT_FROM går före
 
 /* ---------------- summering (samma regler som lib/report.js) ---------------- */
@@ -74,6 +82,7 @@ function mailReport_(kind, from, to, title) {
     '<div style="background:#161B26;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0">' +
     '<div style="font-size:13px;opacity:.8">' + esc_(APP.NAME) + ' · ' + (kind === 'dag' ? 'Dagsrapport' : 'Månadsrapport') + '</div>' +
     '<div style="font-size:22px;font-weight:600;margin-top:2px">' + esc_(title) + '</div>' +
+    (kind === 'dag' ? '<div style="font-size:13px;opacity:.8">00.00 – 23.59.59</div>' : '') +
     '<div style="font-size:30px;font-weight:700;margin-top:10px">' + krR_(t.net) + '</div>' +
     '<div style="font-size:13px;opacity:.8">netto · ' + t.orders + ' order · snitt ' + krR_(t.avg) + '</div></div>' +
     '<div style="border:1px solid #e5e7eb;border-top:0;padding:14px 22px 20px;border-radius:0 0 12px 12px">' +
@@ -103,9 +112,9 @@ function mailReport_(kind, from, to, title) {
 
 /* ---------------- schemaläggning ---------------- */
 
-/** Engångstriggern kl 20.05: dagsrapport, och månadsrapport om det är månadens sista dag. Skickar högst en gång per dag. */
+/** Engångstriggern kl 00.01: dagsrapport för dygnet som just slutade 23.59.59. Skickar högst en gång per dag. */
 function sendReportMail() {
-  const props = PropertiesService.getScriptProperties(), today = now_('yyyy-MM-dd');
+  const props = PropertiesService.getScriptProperties(), today = reportDay_();
   if (props.getProperty('REPORT_SENT') === today) return;
   props.setProperty('REPORT_SENT', today);
   try {
@@ -115,22 +124,26 @@ function sendReportMail() {
   } catch (e) { log_('ERROR', 'Rapport-mejl', e.stack || e.message); props.deleteProperty('REPORT_SENT'); throw e; }
 }
 
-/** Engångstrigger på exakt klockslag idag (Stockholm). false om tiden redan passerat. */
-function oneShotToday_(fn, at) {
+/** Engångstrigger nästa gång klockan är at (Stockholm) – idag om den inte passerat, annars i natt/imorgon. */
+function oneShotNext_(fn, at) {
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === fn) ScriptApp.deleteTrigger(t); });
-  const nowP = nowParts_(), target = at.h * 60 + at.m;
-  if (nowP.minutes >= target) return false;
-  ScriptApp.newTrigger(fn).timeBased().at(new Date(Math.floor(Date.now() / 60000) * 60000 + (target - nowP.minutes) * 60000)).create();
+  const nowP = nowParts_();
+  let diff = at.h * 60 + at.m - nowP.minutes;
+  if (diff <= 0) diff += 1440;
+  ScriptApp.newTrigger(fn).timeBased().at(new Date(Math.floor(Date.now() / 60000) * 60000 + diff * 60000)).create();
   return true;
 }
 
-/** Daglig trigger (~kl 12): dagsrapport exakt 20.05; lördag och månadens sista dag även avstämningsrapport exakt 20.30. */
+/** Daglig trigger (~kl 12): i natt kl 00.01 dagsrapport för idag (t.o.m. 23.59.59);
+ *  är idag lördag eller månadens sista dag även avstämningsrapport kl 00.03. */
 function scheduleReportMail() {
-  const today = now_('yyyy-MM-dd'), sat = new Date(today + 'T12:00:00Z').getUTCDay() === 6;
+  // dygnet som nästa 00.01-körning rapporterar: idag – utom precis efter midnatt (00.00), då är det gårdagen
+  const today = nowParts_().minutes < REPORT_AT.m ? addDays_(now_('yyyy-MM-dd'), -1) : now_('yyyy-MM-dd');
+  const sat = new Date(today + 'T12:00:00Z').getUTCDay() === 6;
   const lastDay = addDays_(today, 1).slice(0, 7) !== today.slice(0, 7);
-  if (sat || lastDay) oneShotToday_('sendPeriodReports', PERIOD_AT);
+  if (sat || lastDay) oneShotNext_('sendPeriodReports', PERIOD_AT);
   else ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'sendPeriodReports') ScriptApp.deleteTrigger(t); });
-  return oneShotToday_('sendReportMail', REPORT_AT);
+  return oneShotNext_('sendReportMail', REPORT_AT);
 }
 
 /* ---------------- meny: Hanami → Rapporter ---------------- */
@@ -140,9 +153,9 @@ function reportMailEnable() {
     if (['scheduleReportMail', 'sendReportMail', 'weeklyReportTick', 'sendPeriodReports'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('scheduleReportMail').timeBased().atHour(12).everyDays(1).inTimezone(APP.TZ).create();
-  const today = scheduleReportMail();
-  say_('E-postrapporter är PÅ ✅\n\nDagsrapport varje dag kl 20.05. Avstämningsrapport (PDF): veckan (sön–lör) varje lördag kl 20.30 och månaden den sista dagen kl 20.30.\nMottagare: ' +
-    (reportRecipients_() || '(saknas – fyll i REPORT_EMAIL eller NOTIFY_EMAIL)') + (today ? '\n\nFörsta rapporten kommer idag kl 20.05.' : '\n\nFörsta rapporten kommer imorgon kl 20.05.'));
+  scheduleReportMail();
+  say_('E-postrapporter är PÅ ✅\n\nDagsrapport för hela dygnet 00.00–23.59.59, skickas kl 00.01 natten efter. Avstämningsrapport (PDF): veckan (sön–lör) efter lördagens slut och månaden efter sista dagen, kl 00.03.\nMottagare: ' +
+    (reportRecipients_() || '(saknas – fyll i REPORT_EMAIL eller NOTIFY_EMAIL)') + '\n\nFörsta rapporten kommer i natt kl 00.01.');
 }
 function reportMailDisable() {
   ScriptApp.getProjectTriggers().forEach(t => {

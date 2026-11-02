@@ -27,7 +27,7 @@ function onOpen() {
       .addItem('Stäng av nattlig städning', 'cleanupDisable')
       .addItem('Öppna arkivarket', 'openArchive'))
     .addSubMenu(ui.createMenu('Rapporter per e-post')
-      .addItem('Slå på (dag 20.05 + månad)', 'reportMailEnable')
+      .addItem('Slå på (dygnet t.o.m. 23.59.59, skickas 00.01)', 'reportMailEnable')
       .addItem('Stäng av', 'reportMailDisable')
       .addItem('Skicka dagsrapport nu (test)', 'reportMailTestDay')
       .addItem('Skicka månadsrapport nu (denna månad, test)', 'monthlyReportTest')
@@ -93,7 +93,7 @@ function setup_(force) {
     ScriptApp.newTrigger('resetSoldOut').timeBased().atHour(4).everyDays(1).inTimezone(APP.TZ).create();
     // Städningen en halvtimme senare så att de två nattjobben inte krockar om låset
     ScriptApp.newTrigger('nightlyCleanup').timeBased().atHour(4).nearMinute(30).everyDays(1).inTimezone(APP.TZ).create();
-    // Rapporter per e-post (ReportMail.js): kl ~12 läggs en engångstrigger på exakt 20.05
+    // Rapporter per e-post (ReportMail.js): kl ~12 läggs engångstriggers på 00.01 (dag) och 00.03 (vecka/månad) natten efter
     ScriptApp.newTrigger('scheduleReportMail').timeBased().atHour(12).everyDays(1).inTimezone(APP.TZ).create();
     scheduleReportMail();
   });
