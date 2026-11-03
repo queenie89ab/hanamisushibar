@@ -151,6 +151,37 @@ function mailBookingConfirmation_(o) {
     guestMail_({ eyebrow: 'Bordsbokning', body: body }), text);
 }
 
+/** Mejl när restaurangen bekräftat bokningen (köksvyn eller Status i arket). */
+function mailBookingConfirmed_(o) {
+  if (!o.email) return false;
+  const body =
+    '<p style="margin:0 0 6px;color:#4C5B6B">Hej ' + esc_(o.name || '') + '!</p>' +
+    '<div style="font:400 26px/1.25 Georgia,serif;color:#1F6B42;margin:10px 0 6px">Ditt bord är bokat ✓</div>' +
+    '<p style="margin:0 0 4px;color:#1B2A3A">Vi har bekräftat din bokning och ser fram emot att träffa dig.</p>' +
+    '<table style="font-size:15px;color:#1B2A3A;margin-top:14px">' +
+      '<tr><td style="padding:4px 16px 4px 0;color:#7A8794">Bokning</td><td><b>' + esc_(o.no) + '</b></td></tr>' +
+      '<tr><td style="padding:4px 16px 4px 0;color:#7A8794">När</td><td><b>' + esc_(o.when) + '</b></td></tr>' +
+      '<tr><td style="padding:4px 16px 4px 0;color:#7A8794">Sällskap</td><td>' + esc_(o.guests) + ' personer</td></tr>' +
+      '<tr><td style="padding:4px 16px 4px 0;color:#7A8794">Adress</td><td>' + esc_(APP.STREET) + ', Ängelholm</td></tr>' +
+      (o.message ? '<tr><td style="padding:4px 16px 4px 0;color:#7A8794">Ditt meddelande</td><td>' + esc_(o.message) + '</td></tr>' : '') +
+    '</table>' +
+    '<p style="margin:18px 0 0;color:#7A8794;font-size:13px">Blir ni sena eller behöver ändra eller avboka? Ring oss på ' + esc_(APP.PHONE) + '.</p>';
+  const text = [APP.NAME, 'Ditt bord ar bokat! Bokning ' + o.no, o.when, o.guests + ' personer', APP.STREET + ', Angelholm',
+    'Andra eller avboka: ' + APP.PHONE].join('\n');
+  return sendGuestMail_(o.email, APP.NAME + ': ditt bord är bokat – ' + o.when, guestMail_({ eyebrow: 'Bokning bekräftad', body: body }), text);
+}
+
+/** Mejl när restaurangen inte kan ta emot bokningen. */
+function mailBookingDeclined_(o) {
+  if (!o.email) return false;
+  const body =
+    '<p style="margin:0 0 6px;color:#4C5B6B">Hej ' + esc_(o.name || '') + '!</p>' +
+    '<p style="margin:10px 0;color:#1B2A3A">Tyvärr har vi inget bord ledigt <b>' + esc_(o.when) + '</b> (bokning ' + esc_(o.no) + ').</p>' +
+    '<p style="margin:0;color:#1B2A3A">Ring oss på <a href="tel:' + esc_(APP.PHONE) + '" style="color:#1873BC">' + esc_(APP.PHONE) + '</a> så hittar vi en annan tid. Välkommen åter!</p>';
+  const text = [APP.NAME, 'Tyvarr inget bord ledigt ' + o.when + ' (bokning ' + o.no + ').', 'Ring ' + APP.PHONE + ' sa hittar vi en annan tid.'].join('\n');
+  return sendGuestMail_(o.email, APP.NAME + ': din bokning ' + o.when, guestMail_({ eyebrow: 'Bordsbokning', body: body }), text);
+}
+
 /** 46elks. Returnerar true om skickat. */
 /**
  * Sms till gästen. Två sätt (Skriptegenskaper):

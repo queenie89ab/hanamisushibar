@@ -284,10 +284,14 @@ function afterStatusChange_(sh, row, status) {
   }
   if (sh.getName() === SHEET.BOOKINGS) {
     const when = whenText_(get('Datum'), get('Tid'));
+    const b = { no: get('Boknr'), name: get('Namn'), email: get('E-post'), guests: get('Gäster'), when: when, message: get('Meddelande') };
+    // Bekräftad: sms + mejl till gästen, en gång (kolumnen "Sms bekräftad" får tiden när något av dem gick iväg)
     if (status === 'Bekräftad' && !get('Sms bekräftad')) {
-      if (sms_(get('Telefon'), SMS.bookingConfirmed(get('Boknr'), get('Gäster'), when))) sh.getRange(row, c['Sms bekräftad']).setValue(now_('HH:mm'));
+      const sent = sms_(get('Telefon'), SMS.bookingConfirmed(b.no, b.guests, when));
+      const mailed = mailBookingConfirmed_(b);
+      if (sent || mailed) sh.getRange(row, c['Sms bekräftad']).setValue(now_('HH:mm'));
     }
-    if (status === 'Avböjd') sms_(get('Telefon'), SMS.bookingDeclined(when));
+    if (status === 'Avböjd') { sms_(get('Telefon'), SMS.bookingDeclined(when)); mailBookingDeclined_(b); }
   }
 }
 

@@ -100,9 +100,17 @@ test("bokning + bekräftelse via köksvyn", () => {
   const b = E.call("booking", { date: today, time: "19:00", guests: 3, name: "Erik", phone: "+46709876543", email: "erik@exempel.se", whenText: "idag kl 19:00" });
   assert.ok(E.log.mails.some(m => (m.to || "") === "erik@exempel.se"), "gästen fick ingen bokningsbekräftelse");
   assert.equal(b.ok, true);
+  const mails = E.log.mails.length;
   E.call("adminStatus", { kind: "booking", no: b.no, status: "Bekräftad" });
   assert.match(E.log.sms.at(-1).payload.message, /Ditt bord är bokat/);
+  const conf = E.log.mails.slice(mails).find(m => m.to === "erik@exempel.se");
+  assert.ok(conf, "gästen fick inget mejl om bekräftad bokning");
+  assert.match(conf.subject, /ditt bord är bokat/); assert.match(conf.htmlBody, new RegExp(b.no)); assert.match(conf.htmlBody, /3 personer/);
   assert.equal(E.call("adminBookings", { from: today }).bookings[0].status, "Bekräftad");
+  // bekräftas igen (t.ex. ändrat fram och tillbaka) → inga nya mejl/sms
+  const m2 = E.log.mails.length, s2 = E.log.sms.length;
+  E.call("adminStatus", { kind: "booking", no: b.no, status: "Bekräftad" });
+  assert.equal(E.log.mails.length, m2); assert.equal(E.log.sms.length, s2);
 });
 test("ändring av Status direkt i arket skickar sms", () => {
   const b = E.call("booking", { date: today, time: "19:30", guests: 2, name: "Sara", phone: "+46700000000", whenText: "idag kl 19:30" });
@@ -112,6 +120,12 @@ test("ändring av Status direkt i arket skickar sms", () => {
   sh.data[row - 1][statusCol - 1] = "Avböjd";
   E.api.handleEdit({ range: sh.getRange(row, statusCol), value: "Avböjd" });
   assert.match(E.log.sms.at(-1).payload.message, /fullbokat/);
+});
+test("avböjd bokning: gästen får mejl om e-post finns", () => {
+  const b = E.call("booking", { date: today, time: "20:00", guests: 4, name: "Lina", phone: "+46700000001", email: "lina@exempel.se", whenText: "idag kl 20:00" });
+  const n = E.log.mails.length;
+  E.call("adminStatus", { kind: "booking", no: b.no, status: "Avböjd" });
+  assert.ok(E.log.mails.slice(n).some(m => m.to === "lina@exempel.se" && /annan tid/.test(m.htmlBody)));
 });
 test("dold rätt försvinner från menyn direkt efter redigering", () => {
   const sh = E.sheets["Meny"]; const row = sh.data.findIndex(r => r[3] === "lunch-1") + 1;
