@@ -545,6 +545,23 @@ test("rapporten gäller dygnet som slutade 23.59.59 (skickas 00.01 natten efter)
   } finally { E.ctx.nowParts_ = real; }
 });
 
+test("säkerhetsnät: missad dagsrapport skickas i efterhand, och kontroll i menyn", () => {
+  const today = E.call("health").time.slice(0, 10), y = new Date(today + "T12:00:00Z"); y.setUTCDate(y.getUTCDate() - 1);
+  const yesterday = y.toISOString().slice(0, 10), real = E.ctx.nowParts_;
+  E.props.REPORT_EMAIL = "agare@exempel.se";
+  try {
+    E.ctx.nowParts_ = () => ({ date: today, minutes: 12 * 60 });
+    E.props.REPORT_SENT = "2000-01-01";
+    let n = E.log.mails.length; E.ctx.scheduleReportMail();
+    assert.equal(E.log.mails.length, n + 1, "gårdagens rapport skickades inte i efterhand");
+    assert.equal(E.props.REPORT_SENT, yesterday);
+    n = E.log.mails.length; E.ctx.scheduleReportMail();
+    assert.equal(E.log.mails.length, n, "skickades två gånger");
+  } finally { E.ctx.nowParts_ = real; }
+  const a = E.log.alerts.length; E.ctx.reportMailStatus();
+  assert.ok(E.log.alerts.length > a && /Mottagare: agare@exempel.se/.test(String(E.log.alerts.at(-1))), "kontrollen visar mottagaren");
+});
+
 test("dagsrapport som PDF: grupper per kategori med rätter, bifogas dagsmejlet", () => {
   const today = E.call("health").time.slice(0, 10);
   E.props.REPORT_FROM = "2000-01-01";

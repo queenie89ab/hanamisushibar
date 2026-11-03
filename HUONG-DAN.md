@@ -683,6 +683,7 @@ Cài đặt: đưa `Report.js` (mới) và `Api.js` lên Apps Script → Triển
 - Cùng quy tắc tính như tab Rapport (đọc cả Arkiv). Gửi tối đa 1 lần/ngày.
 - Người nhận: thuộc tính `REPORT_EMAIL` (nhiều địa chỉ cách nhau dấu phẩy), không có thì `NOTIFY_EMAIL`. Đặt ở Apps Script → ⚙️ Cài đặt dự án → Thuộc tính tập lệnh.
 - Giờ chính xác: Apps Script không hẹn đúng phút được, nên trigger `scheduleReportMail` (~12 giờ trưa) tạo trigger một lần `sendReportMail` đúng 00:01 đêm đó (và `sendPeriodReports` 00:03 nếu hôm đó là T7/cuối tháng). Ngày báo cáo = `reportDay_()`: chạy trước 06:00 → hôm qua. Sau khi đưa code mới lên phải bấm **Slå på** một lần để thay trigger 20:05 cũ.
+- **An toàn (thêm 2026-11-03):** nếu báo cáo đêm bị lỡ (trigger không chạy, lỗi, code chưa cập nhật), trigger ~12h trưa tự gửi bù báo cáo hôm qua. Menu: *Skicka gårdagens dagsrapport nu* (gửi lại hôm qua), *Kontrollera rapporterna* (người nhận, trigger, ngày đã gửi gần nhất, dòng Logg gần nhất).
 - **Bật**: Google Sheet → **Hanami → Rapporter per e-post → Slå på**. Thử ngay: *Skicka dagsrapport nu (test)* / *Skicka månadsrapport nu (test)*. Tắt: *Stäng av*.
 - Code: `apps-script/ReportMail.js`, menu trong `Setup.js`. Phí/moms lấy từ thuộc tính `STRIPE_FEE_PCT`, `STRIPE_FEE_FIXED`, `STRIPE_VAT_PCT` (mặc định 4 / 2 / 6).
 

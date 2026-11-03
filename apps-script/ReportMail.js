@@ -59,7 +59,6 @@ const MONTHS_SV = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli'
 
 function reportRecipients_() { return prop_('REPORT_EMAIL') || prop_('NOTIFY_EMAIL'); }
 
-/** Bygger och skickar en rapport för from–to. kind: 'dag' | 'månad'. Returnerar summeringen. */
 /** Avsnittet "Kort online → bankkontot" i dagsrapporten. */
 function stripeSection_(date, row) {
   const s = stripePayoutDay_(date);
@@ -90,6 +89,7 @@ function stripePayoutDay_(date) {
   } catch (e) { log_('WARN', 'Rapport-Stripe', e.message); return null; }
 }
 
+/** Bygger och skickar en rapport för from–to. kind: 'dag' | 'månad'. Returnerar summeringen. */
 function mailReport_(kind, from, to, title) {
   const to_ = reportRecipients_();
   if (!to_) { log_('WARN', 'Rapport-mejl', 'REPORT_EMAIL/NOTIFY_EMAIL saknas'); return null; }
@@ -143,8 +143,8 @@ function mailReport_(kind, from, to, title) {
 /* ---------------- schemaläggning ---------------- */
 
 /** Engångstriggern kl 00.01: dagsrapport för dygnet som just slutade 23.59.59. Skickar högst en gång per dag. */
-function sendReportMail() {
-  const props = PropertiesService.getScriptProperties(), today = reportDay_();
+function sendReportMail(day) {
+  const props = PropertiesService.getScriptProperties(), today = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? day : reportDay_();
   if (props.getProperty('REPORT_SENT') === today) return;
   props.setProperty('REPORT_SENT', today);
   try {
@@ -167,6 +167,12 @@ function oneShotNext_(fn, at) {
 /** Daglig trigger (~kl 12): i natt kl 00.01 dagsrapport för idag (t.o.m. 23.59.59);
  *  är idag lördag eller månadens sista dag även avstämningsrapport kl 00.03. */
 function scheduleReportMail() {
+  // Säkerhetsnät: har gårdagens dagsrapport inte gått iväg (engångstriggern missades, fel, kod inte uppdaterad) – skicka den nu
+  const yesterday = addDays_(now_('yyyy-MM-dd'), -1), sent = prop_('REPORT_SENT');
+  if (nowParts_().minutes >= 6 * 60 && (!sent || sent < yesterday)) {
+    try { sendReportMail(yesterday); log_('INFO', 'Rapport-mejl', 'Gårdagens dagsrapport skickades i efterhand (' + yesterday + ')'); }
+    catch (e) { log_('ERROR', 'Rapport-mejl', 'Efterhand ' + yesterday + ': ' + e.message); }
+  }
   // dygnet som nästa 00.01-körning rapporterar: idag – utom precis efter midnatt (00.00), då är det gårdagen
   const today = nowParts_().minutes < REPORT_AT.m ? addDays_(now_('yyyy-MM-dd'), -1) : now_('yyyy-MM-dd');
   const sat = new Date(today + 'T12:00:00Z').getUTCDay() === 6;
@@ -193,6 +199,31 @@ function reportMailDisable() {
   });
   say_('E-postrapporter är AV.');
 }
+/** Menyn: skicka gårdagens dagsrapport (räknas som skickad, så den inte går två gånger). */
+function reportMailYesterday() {
+  const y = addDays_(now_('yyyy-MM-dd'), -1);
+  PropertiesService.getScriptProperties().deleteProperty('REPORT_SENT');
+  sendReportMail(y);
+  say_('Dagsrapporten för ' + y + ' är skickad till ' + reportRecipients_() + '.');
+}
+
+/** Menyn: visar om rapporterna är rätt inställda – triggers, mottagare, senast skickad och senaste händelser i Logg. */
+function reportMailStatus() {
+  const trig = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+  const has = n => trig.indexOf(n) >= 0;
+  const logSh = sheet_(SHEET.LOG), last = logSh.getLastRow();
+  const logs = last > 1 ? logSh.getRange(Math.max(2, last - 199), 1, Math.min(199, last - 1), 4).getDisplayValues()
+    .filter(r => /Rapport|Avstämning/.test(r[2])).slice(-6).map(r => r[0] + ' ' + r[1] + ' ' + r[2] + ': ' + String(r[3]).slice(0, 140)) : [];
+  say_([
+    'Mottagare: ' + (reportRecipients_() || 'SAKNAS – fyll i REPORT_EMAIL eller NOTIFY_EMAIL'),
+    'Daglig planering (scheduleReportMail, ~kl 12): ' + (has('scheduleReportMail') ? 'finns ✅' : 'SAKNAS ❌ – tryck Slå på'),
+    'Nattens dagsrapport (sendReportMail, 00.01): ' + (has('sendReportMail') ? 'inlagd ✅' : 'inte inlagd ❌ – tryck Slå på'),
+    'Senast skickad dagsrapport gäller: ' + (prop_('REPORT_SENT') || '–'),
+    'SITE_URL: ' + (prop_('SITE_URL') || 'saknas (Stripe-delen hoppas över)'),
+    '', 'Senaste i Logg:', logs.length ? logs.join('\n') : '(inget om rapporter)'
+  ].join('\n'));
+}
+
 function reportMailTestDay() {
   const today = now_('yyyy-MM-dd'); mailReport_('dag', today, today, 'idag (test) ' + today);
   say_('Dagsrapport skickad till ' + reportRecipients_());
