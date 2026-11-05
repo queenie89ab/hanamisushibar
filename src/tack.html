@@ -89,7 +89,7 @@
     el("tNo").textContent = r.no;
     el("tText").innerHTML = `<span class="sum">Betalt ${esc(kr(r.total))}${r.method ? ` med ${esc(r.method.toLowerCase())}` : ""}.</span><br>` +
       (isTable ? "Köket har fått beställningen och börjar direkt. Maten kommer till bordet."
-               : `Hämtas ${esc(r.when || "så snart maten är klar")} på Östergatan 53.${r.phone ? ` Vi sms:ar ${esc(r.phone)} när den är klar.` : ""}`);
+               : `Hämtas ${esc(r.when || "så snart maten är klar")} på Östergatan 53.${r.email ? ` Du får ett mejl till ${esc(r.email)} när maten är klar.` : " Du får ett mejl när maten är klar."}`);
     const box = el("tBox");
     try { sessionStorage.removeItem("swish-" + ref); } catch {}
     box.innerHTML = `<div class="box"><b>Kvitto</b>${r.email ? `Kvitto och bekräftelse skickas till ${esc(r.email)}.` : "Vill du ha kvitto på mejl? Säg till i kassan så skriver vi ut ett."}

@@ -687,6 +687,12 @@ Cài đặt: đưa `Report.js` (mới) và `Api.js` lên Apps Script → Triển
 - **Bật**: Google Sheet → **Hanami → Rapporter per e-post → Slå på**. Thử ngay: *Skicka dagsrapport nu (test)* / *Skicka månadsrapport nu (test)*. Tắt: *Stäng av*.
 - Code: `apps-script/ReportMail.js`, menu trong `Setup.js`. Phí/moms lấy từ thuộc tính `STRIPE_FEE_PCT`, `STRIPE_FEE_FIXED`, `STRIPE_VAT_PCT` (mặc định 4 / 2 / 6).
 
+### Mail "maten är klar" khi bếp bấm Klar — thêm 2026-11-05
+
+- Bếp bấm **Klar** (đơn mang về) → khách nhận **e-mail "Din mat är klar att hämta"** (số đơn, địa chỉ, số điện thoại). Nếu SMS đã cài thì vẫn gửi SMS kèm. Chỉ gửi **1 lần** mỗi đơn; cột `Sms klar` ghi giờ đã báo, köksvyn hiện "klar-mejl HH:mm".
+- Mọi chỗ trên web trước ghi "vi sms:ar" nay ghi **"du får ett mejl när maten är klar"**: giỏ hàng (ô E-post), màn hình đặt xong, trang /tack sau thanh toán, nút nổi, trang thanh toán Stripe, và SMS xác nhận đơn.
+- Code: `mailOrderReady_` (Notify.js), `afterStatusChange_` (Orders.js); test trong `tests/apps-script.test.cjs`.
+
 ### Utbetalningar – tiền Stripe chuyển vào ngân hàng, đối chiếu với doanh thu trên web — thêm 2026-11-02
 
 - **Xem:** `/kok` → tab **Utbetalningar** → chọn **Vecka** hoặc **Månad**.

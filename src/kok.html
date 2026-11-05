@@ -365,7 +365,7 @@ function orderCard(o, fresh){
     <ul>${o.items.map(i => `<li>${i.qty ? `<b>${i.qty}</b> × ` : ""}${esc(i.name)}${i.note ? `<div class="inote">↳ ${esc(i.note)}</div>` : ""}</li>`).join("")}</ul>
     ${o.message ? `<div class="note">${esc(o.message)}</div>` : ""}
     <div class="meta">${[o.name && esc(o.name), o.phone && `<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>`, esc(o.payment), `<b>${o.total} kr</b>`,
-      o.smsReady && "sms " + esc(o.smsReady), o.printed ? "🖨 " + esc(o.printed) : "🖨 väntar", o.kind === "pickup" ? "mottagen " + esc(o.receivedTime) : ""].filter(Boolean).join(" · ")}</div>
+      o.smsReady && "klar-mejl " + esc(o.smsReady), o.printed ? "🖨 " + esc(o.printed) : "🖨 väntar", o.kind === "pickup" ? "mottagen " + esc(o.receivedTime) : ""].filter(Boolean).join(" · ")}</div>
     ${done ? "" : `<div class="acts">
       ${nextSteps(o).map(s => `<button class="btn ${s === "Klar" ? "ok" : "p"}" type="button" data-o="${esc(o.no)}" data-s="${s}">${s === "Tillagas" ? "Börja tillaga" : s === "Klar" ? "Klar" : s}</button>`).join("")}
       <button class="btn" type="button" data-o="${esc(o.no)}" data-s="Avbokad" data-confirm="Avboka ${esc(o.no)}?">Avboka</button>

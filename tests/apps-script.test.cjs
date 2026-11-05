@@ -77,12 +77,23 @@ test("köksvyn listar dagens beställningar", () => {
   const list = E.call("adminOrders", { date: today }).orders;
   assert.equal(list[0].no, order.no); assert.equal(list[0].items.length, 2);
 });
-test("status Klar skickar sms en gång", () => {
-  const before = E.log.sms.length;
+test("status Klar skickar mejl (och sms) till gästen en gång", () => {
+  const before = E.log.sms.length, mails = E.log.mails.length;
   E.call("adminStatus", { kind: "order", no: order.no, status: "Klar" });
   E.call("adminStatus", { kind: "order", no: order.no, status: "Klar" });
+  const ready = E.log.mails.slice(mails).filter(m => m.to === "anna@exempel.se");
+  assert.equal(ready.length, 1, "gästen ska få exakt ett klar-mejl");
+  assert.match(ready[0].subject, /klar att hämta/); assert.match(ready[0].htmlBody, new RegExp(order.no));
   assert.equal(E.log.sms.length, before + 1);
   assert.match(E.log.sms.at(-1).payload.message, /klar att hämtas/);
+  assert.ok(E.call("adminOrders", { date: today }).orders.find(o => o.no === order.no).smsReady, "köksvyn visar inte att gästen meddelats");
+});
+test("Klar utan telefon: mejlet räcker", () => {
+  const o = E.call("order", { kind: "pickup", name: "Utan", phone: "", email: "utan@exempel.se", pickupDate: today, pickupTime: "18:30", whenText: "idag kl 18:30", items: [{ id: "maki-1", qty: 1 }] });
+  const sms = E.log.sms.length, mails = E.log.mails.length;
+  E.call("adminStatus", { kind: "order", no: o.no, status: "Klar" });
+  assert.ok(E.log.mails.slice(mails).some(m => m.to === "utan@exempel.se" && /klar att hämta/.test(m.subject)));
+  assert.equal(E.log.sms.length, sms);
 });
 test("sms via egen Android-telefon (sms-gate.app) när SMSGATE_* finns, annars 46elks", () => {
   E.props.SMSGATE_USER = "u"; E.props.SMSGATE_PASSWORD = "p";

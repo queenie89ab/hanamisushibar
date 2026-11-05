@@ -1,7 +1,7 @@
 /** E-post till restaurangen och sms till gästen. Fel loggas men stoppar aldrig en beställning. */
 
 const SMS = {
-  orderReceived: (no, when) => APP.NAME + ': Tack! Vi har tagit emot din beställning ' + no + ', hämtas ' + when + '. Du får sms när maten är klar.',
+  orderReceived: (no, when) => APP.NAME + ': Tack! Vi har tagit emot din beställning ' + no + ', hämtas ' + when + '. Du får ett mejl när maten är klar.',
   orderReady: no => APP.NAME + ': Din beställning ' + no + ' är klar att hämtas på ' + APP.STREET + '. Välkommen!',
   bookingReceived: (no, guests, when) => APP.NAME + ': Vi har fått din bokningsförfrågan ' + no + ', ' + guests + ' pers ' + when + '. Vi bekräftar med sms inom kort.',
   bookingConfirmed: (no, guests, when) => APP.NAME + ': Ditt bord är bokat! ' + guests + ' pers ' + when + '. Boknr ' + no + '. ' + APP.STREET + ', Ängelholm. Välkommen!',
@@ -149,6 +149,19 @@ function mailBookingConfirmation_(o) {
     'Bordet ar bokat forst nar du fatt var bekraftelse.', APP.STREET + ', Angelholm', APP.PHONE].join('\n');
   return sendGuestMail_(o.email, APP.NAME + ': bokningsförfrågan ' + o.no + ' – ' + o.when,
     guestMail_({ eyebrow: 'Bordsbokning', body: body }), text);
+}
+
+/** Mejl när köket tryckt Klar: maten väntar på att hämtas. */
+function mailOrderReady_(o) {
+  if (!o.email) return false;
+  const body =
+    '<p style="margin:0 0 6px;color:#4C5B6B">Hej ' + esc_(o.name || '') + '!</p>' +
+    '<div style="font:400 26px/1.25 Georgia,serif;color:#1F6B42;margin:10px 0 6px">Din mat är klar att hämta ✓</div>' +
+    '<div style="font:400 30px/1.2 Georgia,serif;color:#0F3D6E;margin:12px 0 4px">' + esc_(o.no) + '</div>' +
+    '<p style="margin:8px 0 0;color:#1B2A3A">Välkommen till <b>' + esc_(APP.STREET) + ', Ängelholm</b>. Säg ditt ordernummer i kassan.</p>' +
+    '<p style="margin:16px 0 0;color:#7A8794;font-size:13px">Frågor? Ring oss på ' + esc_(APP.PHONE) + '.</p>';
+  const text = [APP.NAME, 'Din mat ar klar att hamta! Order ' + o.no, APP.STREET + ', Angelholm', APP.PHONE].join('\n');
+  return sendGuestMail_(o.email, APP.NAME + ': din mat är klar att hämta – ' + o.no, guestMail_({ eyebrow: 'Klar att hämta', body: body }), text);
 }
 
 /** Mejl när restaurangen bekräftat bokningen (köksvyn eller Status i arket). */

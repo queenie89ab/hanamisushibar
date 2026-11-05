@@ -159,7 +159,7 @@ function createBooking_(p) {
     subject: '📅 Bokning ' + no + ' · ' + p.whenText + ' · ' + p.guests + ' pers',
     title: 'Ny bokningsförfrågan ' + no,
     rows: [['När', p.whenText], ['Gäster', p.guests], ['Namn', p.name], ['Telefon', pretty_(p.phone)], ['E-post', p.email || '–'], ['Meddelande', p.message || '–']],
-    footer: 'Bekräfta eller avböj i köksvyn eller i fliken Bokningar (kolumn Status). Gästen får sms automatiskt.'
+    footer: 'Bekräfta eller avböj i köksvyn eller i fliken Bokningar (kolumn Status). Gästen får sms och mejl automatiskt.'
   });
   sms_(p.phone, SMS.bookingReceived(no, p.guests, p.whenText));
   if (p.email && mailBookingConfirmation_({ no: no, when: p.whenText, guests: p.guests, name: p.name,
@@ -277,8 +277,12 @@ function afterStatusChange_(sh, row, status) {
   const get = name => v[c[name] - 1];
 
   if (sh.getName() === SHEET.ORDERS) {
-    if (status === 'Klar' && get('Typ') === 'Hämtning' && get('Telefon') && !get('Sms klar')) {
-      if (sms_(get('Telefon'), SMS.orderReady(get('Ordernr')))) sh.getRange(row, c['Sms klar']).setValue(now_('HH:mm'));
+    // Klar (hämtning): mejl till gästen "maten är klar" + sms om sms är inställt. En gång per order –
+    // kolumnen "Sms klar" får tiden när mejlet eller sms:et gick iväg (köksvyn visar den som "klar-mejl").
+    if (status === 'Klar' && get('Typ') === 'Hämtning' && !get('Sms klar')) {
+      const mailed = mailOrderReady_({ no: get('Ordernr'), name: get('Namn'), email: get('E-post') });
+      const sent = get('Telefon') ? sms_(get('Telefon'), SMS.orderReady(get('Ordernr'))) : false;
+      if (mailed || sent) sh.getRange(row, c['Sms klar']).setValue(now_('HH:mm'));
     }
     return;
   }

@@ -657,7 +657,7 @@ function renderDrawer() {
     body.innerHTML = `<div class="done"><span class="eyebrow center">${TABLE ? `Bord ${esc(TABLE)}` : "Ditt ordernummer"}</span>
       <div class="big foil">${esc(o.no)}</div>
       <p><b style="color:var(--ink)">Summa ${o.total} kr</b></p>
-      <p>${TABLE ? "Köket har fått beställningen och börjar direkt. Betala med Swish när ni går." : `Hämtas ${esc(o.when)}. Vi sms:ar ${esc(o.phone)} när maten är klar.`}</p>
+      <p>${TABLE ? "Köket har fått beställningen och börjar direkt. Betala med Swish när ni går." : `Hämtas ${esc(o.when)}. ${o.email ? `Du får ett mejl till ${esc(o.email)} när maten är klar.` : "Du får ett mejl när maten är klar."}`}</p>
       ${o.payment === "swish" ? `<div class="swish"><b>Swisha ${o.total} kr till ${swishNo}</b>
         <span class="sm">${esc(SETTINGS.name)} · meddelande ${esc(o.no)}</span>
         ${isPhone
@@ -711,8 +711,8 @@ function renderDrawer() {
     <form id="orderForm" novalidate>
       ${TABLE ? "" : hhMode ? happyPickupHtml(hhSlots) : pi.closed ? `<p class="err">${esc(pi.closed)}</p>` : pickupHtml(pi)}
       <div class="field"><label for="oName">Namn${TABLE ? " (valfritt)" : ""}</label><input id="oName" name="name" autocomplete="name"></div>
-      <div class="field"><label for="oPhone">Mobilnummer${TABLE ? " (valfritt)" : ""}</label><input id="oPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel">${TABLE ? "" : "<small>Vi sms:ar när maten är klar.</small>"}</div>
-      <div class="field"><label for="oMail">E-post</label><input id="oMail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="namn@exempel.se" required><small>Vi skickar bekräftelse och kvitto med hela beställningen hit.</small></div>
+      <div class="field"><label for="oPhone">Mobilnummer${TABLE ? " (valfritt)" : ""}</label><input id="oPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+      <div class="field"><label for="oMail">E-post</label><input id="oMail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="namn@exempel.se" required><small>${TABLE ? "Vi skickar bekräftelse och kvitto med hela beställningen hit." : "Hit skickar vi bekräftelse, kvitto och ett mejl när maten är klar."}</small></div>
       <div class="field"><span class="lbl">Dricks (valfritt)</span>
         <div class="choice tips">${[0, 5, 10, 15, 20].map(v => `<label><input type="radio" name="tip" value="${v}"${tipPct === v ? " checked" : ""}>${v ? v + " %" : "Ingen"}</label>`).join("")}
           <label><input type="radio" name="tip" value="egen"${tipPct === "egen" ? " checked" : ""}>Egen summa</label></div>
