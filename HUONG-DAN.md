@@ -687,6 +687,13 @@ Cài đặt: đưa `Report.js` (mới) và `Api.js` lên Apps Script → Triển
 - **Bật**: Google Sheet → **Hanami → Rapporter per e-post → Slå på**. Thử ngay: *Skicka dagsrapport nu (test)* / *Skicka månadsrapport nu (test)*. Tắt: *Stäng av*.
 - Code: `apps-script/ReportMail.js`, menu trong `Setup.js`. Phí/moms lấy từ thuộc tính `STRIPE_FEE_PCT`, `STRIPE_FEE_FIXED`, `STRIPE_VAT_PCT` (mặc định 4 / 2 / 6).
 
+### Chỉ dùng e-mail, không SMS — 2026-11-05
+
+- Quán **không gửi SMS** cho khách nữa. Mọi thông báo đi bằng **e-mail**: xác nhận đơn + kvitto, "maten är klar", nhận yêu cầu đặt bàn, đã xác nhận / từ chối đặt bàn.
+- **Đặt bàn bắt buộc e-mail** (trước là tuỳ chọn) vì xác nhận gửi qua mail. Số điện thoại vẫn bắt buộc để quán gọi khi cần.
+- Chữ trên web đổi theo: "Vi bekräftar via mejl", köksvyn ghi "bekräftelse‑mejl", "klar-mejl".
+- Muốn bật lại SMS sau này: Apps Script → Thuộc tính tập lệnh → `SMS_ENABLED` = `on` (cần SMSGATE_* hoặc ELKS_*). Mặc định tắt.
+
 ### Mail "maten är klar" khi bếp bấm Klar — thêm 2026-11-05
 
 - Bếp bấm **Klar** (đơn mang về) → khách nhận **e-mail "Din mat är klar att hämta"** (số đơn, địa chỉ, số điện thoại). Nếu SMS đã cài thì vẫn gửi SMS kèm. Chỉ gửi **1 lần** mỗi đơn; cột `Sms klar` ghi giờ đã báo, köksvyn hiện "klar-mejl HH:mm".

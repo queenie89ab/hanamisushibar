@@ -257,7 +257,7 @@
     <div class="head reveal" style="margin:0">
       <span class="eyebrow">Boka bord</span>
       <h2 id="h-book">Ett bord <em class="foil">för er</em></h2>
-      <p>Skicka en förfrågan så bekräftar vi med sms så snart vi kan.</p>
+      <p>Skicka en förfrågan så bekräftar vi via mejl så snart vi kan.</p>
       <ul>
         <li>Online upp till {{MAXG}} personer</li>
         <li>Större sällskap – ring {{PHONE}}</li>
@@ -283,8 +283,8 @@
           <div class="field"><label for="bGuests">Antal gäster</label><select id="bGuests" name="guests"></select></div>
           <div class="field"><label for="bName">Namn</label><input id="bName" name="name" autocomplete="name" required></div>
         </div>
-        <div class="field"><label for="bPhone">Mobilnummer</label><input id="bPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required><small>Bekräftelsen kommer via sms.</small></div>
-        <div class="field"><label for="bMail">E-post (valfritt)</label><input id="bMail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="namn@exempel.se"><small>Vi skickar en kopia på förfrågan.</small></div>
+        <div class="field"><label for="bPhone">Mobilnummer</label><input id="bPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required><small>Om vi behöver nå dig.</small></div>
+        <div class="field"><label for="bMail">E-post</label><input id="bMail" name="email" type="email" inputmode="email" autocomplete="email" placeholder="namn@exempel.se" required><small>Hit skickar vi bekräftelsen.</small></div>
         <div class="field"><label for="bMsg">Meddelande</label><textarea id="bMsg" name="message" placeholder="Allergier, barnstol, födelsedag …"></textarea></div>
         <input class="sr" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div id="bookErr" class="err" hidden></div>
@@ -355,7 +355,7 @@ function initBooking() {
       const r = await send(p);
       const d = new Date(p.date + "T12:00:00");
       $("#bookNo").textContent = r.no;
-      $("#bookDoneText").textContent = `${p.guests} ${p.guests > 1 ? "personer" : "person"}, ${dayNames[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} kl ${p.time}. Vi bekräftar via sms till ${p.phone}.` + (p.email ? ` En kopia är skickad till ${p.email}.` : "") + (r.demo ? " (Demoläge – inget skickades.)" : "");
+      $("#bookDoneText").textContent = `${p.guests} ${p.guests > 1 ? "personer" : "person"}, ${dayNames[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1} kl ${p.time}. Vi bekräftar via mejl till ${p.email}.` + (r.demo ? " (Demoläge – inget skickades.)" : "");
       f.hidden = true; $("#bookDone").hidden = false;
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     btn.disabled = false; btn.textContent = "Skicka bokningsförfrågan";

@@ -394,10 +394,10 @@ async function loadBookings(){
         <div class="top"><span class="big">${esc(b.time)}</span><span class="no">${b.guests} pers</span></div>
         <div class="kind">${esc(b.name)} <span class="status">${esc(b.status)}</span></div>
         ${b.message ? `<div class="note">${esc(b.message)}</div>` : ""}
-        <div class="meta">${esc(b.no)} · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>${b.smsConfirmed ? " · bekräftelse‑sms " + esc(b.smsConfirmed) : ""}</div>
+        <div class="meta">${esc(b.no)} · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>${b.smsConfirmed ? " · bekräftelse‑mejl " + esc(b.smsConfirmed) : ""}</div>
         <div class="acts">
           ${b.status === "Väntar" ? `<button class="btn ok" type="button" data-b="${esc(b.no)}" data-s="Bekräftad">Bekräfta</button>
-             <button class="btn" type="button" data-b="${esc(b.no)}" data-s="Avböjd" data-confirm="Avböj ${esc(b.no)}? Gästen får ett sms.">Avböj</button>` : ""}
+             <button class="btn" type="button" data-b="${esc(b.no)}" data-s="Avböjd" data-confirm="Avböj ${esc(b.no)}? Gästen får ett mejl.">Avböj</button>` : ""}
           ${b.status === "Bekräftad" ? `<button class="btn" type="button" data-b="${esc(b.no)}" data-s="Avbokad" data-confirm="Markera ${esc(b.no)} som avbokad?">Avbokad</button>` : ""}
         </div>
       </article>`;

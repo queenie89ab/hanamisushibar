@@ -159,7 +159,7 @@ function createBooking_(p) {
     subject: '📅 Bokning ' + no + ' · ' + p.whenText + ' · ' + p.guests + ' pers',
     title: 'Ny bokningsförfrågan ' + no,
     rows: [['När', p.whenText], ['Gäster', p.guests], ['Namn', p.name], ['Telefon', pretty_(p.phone)], ['E-post', p.email || '–'], ['Meddelande', p.message || '–']],
-    footer: 'Bekräfta eller avböj i köksvyn eller i fliken Bokningar (kolumn Status). Gästen får sms och mejl automatiskt.'
+    footer: 'Bekräfta eller avböj i köksvyn eller i fliken Bokningar (kolumn Status). Gästen får mejl automatiskt.'
   });
   sms_(p.phone, SMS.bookingReceived(no, p.guests, p.whenText));
   if (p.email && mailBookingConfirmation_({ no: no, when: p.whenText, guests: p.guests, name: p.name,

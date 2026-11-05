@@ -206,6 +206,8 @@ function mailBookingDeclined_(o) {
  * Är båda inställda används telefonen först och 46elks som reserv om telefonen inte svarar.
  */
 function sms_(to, message) {
+  // Restaurangen använder bara e-post till gästerna (beslut 2026-11-05). Sms skickas bara om SMS_ENABLED = on.
+  if (prop_('SMS_ENABLED') !== 'on') return false;
   if (!to) return false;
   if (prop_('SMSGATE_USER') && prop_('SMSGATE_PASSWORD') && smsGate_(to, message)) return true;
   return smsElks_(to, message);

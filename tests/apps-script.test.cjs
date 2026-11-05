@@ -77,7 +77,17 @@ test("köksvyn listar dagens beställningar", () => {
   const list = E.call("adminOrders", { date: today }).orders;
   assert.equal(list[0].no, order.no); assert.equal(list[0].items.length, 2);
 });
-test("status Klar skickar mejl (och sms) till gästen en gång", () => {
+test("sms är avstängt som standard – bara mejl till gästen", () => {
+  delete E.props.SMS_ENABLED;
+  const o = E.call("order", { kind: "pickup", name: "Mejl", phone: "+46701112299", email: "mejl@exempel.se", pickupDate: today, pickupTime: "18:40", whenText: "idag kl 18:40", items: [{ id: "maki-1", qty: 1 }] });
+  const sms = E.log.sms.length, hooks = E.log.hooks.length, mails = E.log.mails.length;
+  E.call("adminStatus", { kind: "order", no: o.no, status: "Klar" });
+  assert.equal(E.log.sms.length, sms, "inga sms"); assert.equal(E.log.hooks.length, hooks, "inga sms via telefonen");
+  assert.ok(E.log.mails.slice(mails).some(m => m.to === "mejl@exempel.se" && /klar att hämta/.test(m.subject)), "klar-mejlet saknas");
+  assert.equal(E.ctx.sms_("+46701234567", "Hej"), false);
+  E.props.SMS_ENABLED = "on";   // resten av testerna kör även sms-vägen (kan slås på med SMS_ENABLED = on)
+});
+test("status Klar skickar mejl (och sms om påslaget) till gästen en gång", () => {
   const before = E.log.sms.length, mails = E.log.mails.length;
   E.call("adminStatus", { kind: "order", no: order.no, status: "Klar" });
   E.call("adminStatus", { kind: "order", no: order.no, status: "Klar" });
